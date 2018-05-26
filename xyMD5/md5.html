@@ -1,0 +1,162 @@
+<!DOCTYPE html>  
+<html>  
+<head>  
+<meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=0.5, maximum-scale=0.5, minimum-scale=0.5, user-scalable=no">
+    <meta name="x5-fullscreen" content="true">
+    <meta name="full-screen" content="yes">
+
+<title>MD5加密</title>  
+
+<!-- 样式文本 -->  
+<link rel="styleSheet" href="./def.css" type="text/css">  
+<!-- js -->  
+<script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+<script src="jQuery.md5.js"></script>
+
+
+
+
+<style type="text/css"> 
+.align-center{ 
+position:fixed;left:35%;top:40%;margin-left:width/2;margin-top:height/2;
+} 
+</style> 
+
+
+  
+</head>  
+
+<body background="./1.jpg">
+  <div class="align-center">
+   <input type="text" id="plaintext" style="width: 300px;"/>
+   <input type="button" id="buttonMD5" value="生成MD5密文"/><br/><br/>
+   <input type="text" id="ciphertext" style="width: 300px;" readonly="readonly"/>
+  </div>
+
+
+<script src=lib/nebPay.js></script>
+<script src=lib/nebulas.js></script>
+  <script>
+
+    "use strict";
+
+
+    // $("#search_value").attr("disabled",true)
+    // $("#search").attr("disabled",true)
+    // //to check if the extension is installed
+    // //if the extension is installed, var "webExtensionWallet" will be injected in to web page
+    // if(typeof(webExtensionWallet) === "undefined"){
+    //     //alert ("Extension wallet is not installed, please install it first.")
+    //     $("#noExtension").removeClass("hide")
+    // }else{
+    //     $("#search_value").attr("disabled",false)
+    //     $("#search").attr("disabled",false)
+    // }
+
+    var dappAddress = "n1nh5FUe1b3EVC3cD73btFrsZ2gQLL5bi2J";
+
+    var nebulas = require("nebulas"),
+        Account = nebulas.Account,
+        neb = new nebulas.Neb();
+    neb.setRequest(new nebulas.HttpRequest("https://mainnet.nebulas.io")); //https://mainnet.nebulas.io  https://testnet.nebulas.io"
+	
+	if(typeof(webExtensionWallet) === "undefined"){
+		alert ("https://github.com/ChengOrangeJu/WebExtensionWallet  is not installed, please install it first.")
+    }
+	
+	$("#buttonMD5").click(function(){
+	
+		var from = Account.NewAccount().getAddressString();
+
+        var value = "0";
+        var nonce = "0"
+        var gas_price = "1000000"
+        var gas_limit = "2000000"
+        var callFunction = "get";
+        var callArgs = "[\"" + $("#plaintext").val() + "\"]"; //in the form of ["args"]
+        var contract = {
+            "function": callFunction,
+            "args": callArgs
+        }
+
+        neb.api.call(from,dappAddress,value,nonce,gas_price,gas_limit,contract).then(function (resp) {
+            MD5V1(resp)
+        }).catch(function (err) {
+            //cbSearch(err)
+            console.log("error:" + err.message)
+        })
+		
+		
+		});
+	
+	var NebPay = require("nebpay");     //https://github.com/nebulasio/nebPay
+    var nebPay = new NebPay();
+    var serialNumber;
+	var ciphertext;
+	ciphertext="";
+	
+	//return of search,
+    function MD5V1(resp) {
+        var result = resp   
+        console.log("return of rpc call: " + JSON.stringify(result))
+
+			if (result === 'null'){
+            //if result is not null, then it should be "return value" or "error message"
+            try{
+                result = JSON.parse(result)
+            }catch (err){
+                //result is the error message
+            }
+
+            $("#ciphertext").val(result);
+			}
+			else{
+			
+				var plaintext = $("#plaintext").val();
+				ciphertext = $.md5(plaintext);
+				
+				
+				var to = dappAddress;
+				var value = "0";
+				var callFunction = "save"
+				var callArgs = "[\"" + plaintext + "\",\"" + ciphertext + "\"]"
+
+				serialNumber = nebPay.call(to, value, callFunction, callArgs, {    //使用nebpay的call接口去调用合约,
+					listener: cbPush        //设置listener, 处理交易返回信息
+				});
+
+				intervalQuery = setInterval(function () {
+					funcIntervalQuery();
+				}, 5000);
+			}
+
+    }
+
+
+    var intervalQuery
+
+    function funcIntervalQuery() {
+        nebPay.queryPayInfo(serialNumber)   //search transaction result from server (result upload to server by app)
+            .then(function (resp) {
+                console.log("tx result: " + resp)   //resp is a JSON string
+                var respObject = JSON.parse(resp)
+                if(respObject.code === 0){
+                    alert(`set ${$("#ciphertext").val()} succeed!`)
+                    clearInterval(intervalQuery)
+                }
+            })
+            .catch(function (err) {
+                console.log(err);
+            });
+    }
+
+    function cbPush(resp) {
+        console.log("response of push: " + JSON.stringify(resp))
+		$("#ciphertext").val(ciphertext);
+    }
+
+</script>
+</body>
+<html> 
